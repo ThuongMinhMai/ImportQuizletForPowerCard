@@ -31,24 +31,19 @@ app.post("/crawl", async (req, res) => {
   try {
     global.sendProgress({ progress: 10, message: "Launching browser..." });
 
-    // const browser = await puppeteer.launch({
-    //   headless: "new", // HEADLESS → không hiện tab
-    //   slowMo: 0, // tăng tốc crawl
-    //   args: [
-    //     "--disable-blink-features=AutomationControlled",
-    //     "--no-sandbox",
-    //     "--disable-setuid-sandbox",
-    //   ],
-    // });
+    // Puppeteer launch trên Render
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: "/usr/bin/chromium-browser",
+      executablePath: "/usr/bin/chromium-browser", // Chromium có sẵn trên Render
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-blink-features=AutomationControlled",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
       ],
     });
+
     const page = await browser.newPage();
 
     // Fake user agent
@@ -71,7 +66,7 @@ app.post("/crawl", async (req, res) => {
     console.log("===> Flashcards loaded!");
 
     // ==============================
-    // AUTO CLICK “HIỂN THỊ THÊM” 100%
+    // AUTO CLICK “HIỂN THỊ THÊM”
     // ==============================
     try {
       global.sendProgress({
@@ -86,7 +81,6 @@ app.post("/crawl", async (req, res) => {
           const buttons = [
             ...document.querySelectorAll("button.AssemblyButtonBaseV2--large"),
           ];
-
           const target = buttons.find((b) => {
             const t = b.innerText?.trim().toLowerCase();
             return (
@@ -96,10 +90,8 @@ app.post("/crawl", async (req, res) => {
               t.startsWith("xem thêm")
             );
           });
-
           if (!target) return false;
-
-          target.click(); // click trực tiếp trong DOM
+          target.click();
           return true;
         });
 
@@ -112,7 +104,7 @@ app.post("/crawl", async (req, res) => {
           message: `Click nút hiển thị thêm lần ${clickCount}`,
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 1500)); // chờ load thêm
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
 
       console.log(`✅ Đã click tổng cộng ${clickCount} lần`);
@@ -149,4 +141,10 @@ app.post("/crawl", async (req, res) => {
   }
 });
 
-app.listen(5000, () => console.log("Backend running on http://localhost:5000"));
+// ==============================
+// PORT DYNAMIC RENDER
+// ==============================
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () =>
+  console.log(`Backend running on http://localhost:${PORT}`)
+);
