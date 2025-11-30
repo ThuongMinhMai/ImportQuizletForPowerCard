@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const puppeteer = require("puppeteer-core");
-const chromium = require("chrome-aws-lambda"); // Chromium đã build sẵn, chạy trên server
+const chromium = require("chrome-aws-lambda");
 
 const app = express();
 app.use(cors());
