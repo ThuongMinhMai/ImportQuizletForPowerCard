@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
+const chromium = require("chrome-aws-lambda"); // Chromium đã build sẵn, chạy trên server
 
 const app = express();
 app.use(cors());
@@ -31,17 +32,12 @@ app.post("/crawl", async (req, res) => {
   try {
     global.sendProgress({ progress: 10, message: "Launching browser..." });
 
-    // Puppeteer launch trên Render
+    // Puppeteer launch dùng chrome-aws-lambda
     const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: "/usr/bin/chromium-browser", // Chromium có sẵn trên Render
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-      ],
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();

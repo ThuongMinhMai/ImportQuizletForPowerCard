@@ -7,6 +7,10 @@
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "puppeteer": "^24.31.0"
+    "puppeteer-core": "^24.31.0",
+    "chrome-aws-lambda": "^20.0.0"
+  },
+  "scripts": {
+    "start": "node server.js"
   }
 }
