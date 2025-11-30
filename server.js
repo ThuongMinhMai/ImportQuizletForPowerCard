@@ -39,7 +39,6 @@ app.post("/crawl", async (req, res) => {
       executablePath: await chromium.executablePath,
       headless: chromium.headless,
     });
-
     const page = await browser.newPage();
 
     // Fake user agent
