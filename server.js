@@ -31,16 +31,24 @@ app.post("/crawl", async (req, res) => {
   try {
     global.sendProgress({ progress: 10, message: "Launching browser..." });
 
+    // const browser = await puppeteer.launch({
+    //   headless: "new", // HEADLESS → không hiện tab
+    //   slowMo: 0, // tăng tốc crawl
+    //   args: [
+    //     "--disable-blink-features=AutomationControlled",
+    //     "--no-sandbox",
+    //     "--disable-setuid-sandbox",
+    //   ],
+    // });
     const browser = await puppeteer.launch({
-      headless: "new", // HEADLESS → không hiện tab
-      slowMo: 0, // tăng tốc crawl
+      headless: true,
+      executablePath: "/usr/bin/chromium-browser",
       args: [
-        "--disable-blink-features=AutomationControlled",
         "--no-sandbox",
         "--disable-setuid-sandbox",
+        "--disable-blink-features=AutomationControlled",
       ],
     });
-
     const page = await browser.newPage();
 
     // Fake user agent
