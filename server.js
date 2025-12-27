@@ -1,13 +1,141 @@
+// // // // const express = require("express");
+// // // // const cors = require("cors");
+// // // // const { chromium } = require("playwright"); // Playwright
+
+// // // // const app = express();
+// // // // app.use(cors());
+// // // // app.use(express.json());
+
+// // // // // ==============================
+// // // // // SSE PROGRESS
+// // // // // ==============================
+// // // // app.get("/progress", (req, res) => {
+// // // //   res.setHeader("Content-Type", "text/event-stream");
+// // // //   res.setHeader("Cache-Control", "no-cache");
+// // // //   res.setHeader("Connection", "keep-alive");
+// // // //   res.flushHeaders();
+
+// // // //   global.sendProgress = (msg) => {
+// // // //     res.write(`data: ${JSON.stringify(msg)}\n\n`);
+// // // //   };
+
+// // // //   global.sendProgress({ progress: 0, message: "Ready..." });
+// // // // });
+
+// // // // // ==============================
+// // // // // CRAWL QUIZLET
+// // // // // ==============================
+// // // // app.post("/crawl", async (req, res) => {
+// // // //   const { url } = req.body;
+
+// // // //   try {
+// // // //     global.sendProgress({ progress: 10, message: "Launching browser..." });
+
+// // // //     const browser = await chromium.launch({
+// // // //       headless: false, // set true nếu muốn chạy background
+// // // //       args: ["--disable-blink-features=AutomationControlled"],
+// // // //     });
+
+// // // //     const context = await browser.newContext({
+// // // //       viewport: { width: 1366, height: 768 },
+// // // //       userAgent:
+// // // //         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+// // // //     });
+
+// // // //     const page = await context.newPage();
+
+// // // //     global.sendProgress({ progress: 30, message: "Opening page..." });
+
+// // // //     try {
+// // // //       await page.goto(url, { waitUntil: "networkidle" });
+// // // //     } catch (e) {
+// // // //       console.log("[Retry] networkidle failed → domcontentloaded");
+// // // //       await page.goto(url, { waitUntil: "domcontentloaded" });
+// // // //     }
+
+// // // //     // ==============================
+// // // //     // AUTO CLICK “SEE MORE”
+// // // //     // ==============================
+// // // //     try {
+// // // //       global.sendProgress({
+// // // //         progress: 50,
+// // // //         message: "Đang mở rộng danh sách bằng nút hiển thị thêm...",
+// // // //       });
+
+// // // //       let clickCount = 0;
+
+// // // //       while (true) {
+// // // //         const button = await page.$(
+// // // //           "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm')"
+// // // //         );
+// // // //         if (!button) break;
+
+// // // //         await button.click();
+// // // //         clickCount++;
+// // // //         console.log(`👉 Click lần ${clickCount}`);
+
+// // // //         global.sendProgress({
+// // // //           progress: 50 + clickCount,
+// // // //           message: `Click nút hiển thị thêm lần ${clickCount}`,
+// // // //         });
+
+// // // //         await page.waitForTimeout(1500); // chờ load thêm flashcards
+// // // //       }
+
+// // // //       console.log(`✅ Đã click tổng cộng ${clickCount} lần`);
+// // // //       global.sendProgress({
+// // // //         progress: 70,
+// // // //         message: `Đã mở rộng toàn bộ (${clickCount} lần)`,
+// // // //       });
+// // // //     } catch (err) {
+// // // //       console.log("⚠️ Lỗi khi auto click nút hiển thị thêm:", err);
+// // // //     }
+
+// // // //     // ==============================
+// // // //     // CRAWL FLASHCARDS
+// // // //     // ==============================
+// // // //     await page.waitForSelector(".s16qqoff", { timeout: 60000 });
+
+// // // //     const result = await page.evaluate(() => {
+// // // //       return [...document.querySelectorAll(".s16qqoff")].map((card) => {
+// // // //         const question =
+// // // //           card.querySelector(".s1wsz68j.syulbge .TermText")?.innerText || "";
+// // // //         const answer =
+// // // //           card.querySelector(".s1wsz68j.l1rpwius .TermText")?.innerText || "";
+// // // //         return { question, answer };
+// // // //       });
+// // // //     });
+
+// // // //     global.sendProgress({ progress: 100, message: "Done!" });
+// // // //     console.log("Sample:", result.slice(0, 5));
+
+// // // //     await browser.close();
+// // // //     res.json({ success: true, total: result.length, data: result });
+// // // //   } catch (err) {
+// // // //     console.error(err);
+// // // //     global.sendProgress({ progress: -1, message: "Error!" });
+// // // //     res.status(500).json({ success: false, error: err.toString() });
+// // // //   }
+// // // // });
+
+// // // // // ==============================
+// // // // // PORT
+// // // // // ==============================
+// // // // const PORT = process.env.PORT || 5000;
+// // // // app.listen(PORT, () =>
+// // // //   console.log(`Backend running on http://localhost:${PORT}`)
+// // // // );
+
 // // // const express = require("express");
 // // // const cors = require("cors");
-// // // const { chromium } = require("playwright"); // Playwright
+// // // const { chromium } = require("playwright");
 
 // // // const app = express();
 // // // app.use(cors());
 // // // app.use(express.json());
 
 // // // // ==============================
-// // // // SSE PROGRESS
+// // // // SSE PROGRESS (Gửi tiến trình về Frontend)
 // // // // ==============================
 // // // app.get("/progress", (req, res) => {
 // // //   res.setHeader("Content-Type", "text/event-stream");
@@ -19,112 +147,139 @@
 // // //     res.write(`data: ${JSON.stringify(msg)}\n\n`);
 // // //   };
 
-// // //   global.sendProgress({ progress: 0, message: "Ready..." });
+// // //   global.sendProgress({ progress: 0, message: "Đang sẵn sàng..." });
 // // // });
 
 // // // // ==============================
-// // // // CRAWL QUIZLET
+// // // // CRAWL LOGIC
 // // // // ==============================
 // // // app.post("/crawl", async (req, res) => {
 // // //   const { url } = req.body;
+// // //   if (!url)
+// // //     return res.status(400).json({ success: false, error: "URL không hợp lệ" });
 
+// // //   let browser;
 // // //   try {
-// // //     global.sendProgress({ progress: 10, message: "Launching browser..." });
+// // //     global.sendProgress({ progress: 5, message: "Khởi động trình duyệt..." });
 
-// // //     const browser = await chromium.launch({
-// // //       headless: false, // set true nếu muốn chạy background
+// // //     browser = await chromium.launch({
+// // //       headless: false, // Để false để bạn có thể quan sát và can thiệp nếu gặp Captcha
 // // //       args: ["--disable-blink-features=AutomationControlled"],
 // // //     });
 
 // // //     const context = await browser.newContext({
-// // //       viewport: { width: 1366, height: 768 },
+// // //       viewport: { width: 1280, height: 800 },
 // // //       userAgent:
 // // //         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 // // //     });
 
 // // //     const page = await context.newPage();
 
-// // //     global.sendProgress({ progress: 30, message: "Opening page..." });
+// // //     global.sendProgress({ progress: 15, message: "Đang tải trang Quizlet..." });
 
-// // //     try {
-// // //       await page.goto(url, { waitUntil: "networkidle" });
-// // //     } catch (e) {
-// // //       console.log("[Retry] networkidle failed → domcontentloaded");
-// // //       await page.goto(url, { waitUntil: "domcontentloaded" });
-// // //     }
+// // //     // Truy cập trang với timeout dài hơn
+// // //     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+
+// // //     // Cuộn trang để kích hoạt lazy loading
+// // //     await page.mouse.wheel(0, 1000);
+// // //     await page.waitForTimeout(2000);
 
 // // //     // ==============================
-// // //     // AUTO CLICK “SEE MORE”
+// // //     // XỬ LÝ NÚT "XEM THÊM"
 // // //     // ==============================
+// // //     global.sendProgress({
+// // //       progress: 30,
+// // //       message: "Đang kiểm tra danh sách dài...",
+// // //     });
 // // //     try {
-// // //       global.sendProgress({
-// // //         progress: 50,
-// // //         message: "Đang mở rộng danh sách bằng nút hiển thị thêm...",
-// // //       });
-
 // // //       let clickCount = 0;
+// // //       while (clickCount < 30) {
+// // //         // Tìm nút dựa trên cấu trúc chung nhất
+// // //         const seeMoreBtn = page
+// // //           .locator(
+// // //             "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm'), .SetPage-showMoreButton"
+// // //           )
+// // //           .first();
 
-// // //       while (true) {
-// // //         const button = await page.$(
-// // //           "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm')"
-// // //         );
-// // //         if (!button) break;
-
-// // //         await button.click();
-// // //         clickCount++;
-// // //         console.log(`👉 Click lần ${clickCount}`);
-
-// // //         global.sendProgress({
-// // //           progress: 50 + clickCount,
-// // //           message: `Click nút hiển thị thêm lần ${clickCount}`,
-// // //         });
-
-// // //         await page.waitForTimeout(1500); // chờ load thêm flashcards
+// // //         if (await seeMoreBtn.isVisible()) {
+// // //           await seeMoreBtn.click();
+// // //           clickCount++;
+// // //           global.sendProgress({
+// // //             progress: 30 + clickCount * 2,
+// // //             message: `Đã mở rộng danh sách ${clickCount} lần...`,
+// // //           });
+// // //           await page.waitForTimeout(1500);
+// // //         } else {
+// // //           break;
+// // //         }
 // // //       }
-
-// // //       console.log(`✅ Đã click tổng cộng ${clickCount} lần`);
-// // //       global.sendProgress({
-// // //         progress: 70,
-// // //         message: `Đã mở rộng toàn bộ (${clickCount} lần)`,
-// // //       });
-// // //     } catch (err) {
-// // //       console.log("⚠️ Lỗi khi auto click nút hiển thị thêm:", err);
+// // //     } catch (e) {
+// // //       console.log("Dừng click nút Xem thêm (không tìm thấy hoặc hết thẻ).");
 // // //     }
 
 // // //     // ==============================
-// // //     // CRAWL FLASHCARDS
+// // //     // TRÍCH XUẤT DỮ LIỆU CHÍNH XÁC
 // // //     // ==============================
-// // //     await page.waitForSelector(".s16qqoff", { timeout: 60000 });
-
-// // //     const result = await page.evaluate(() => {
-// // //       return [...document.querySelectorAll(".s16qqoff")].map((card) => {
-// // //         const question =
-// // //           card.querySelector(".s1wsz68j.syulbge .TermText")?.innerText || "";
-// // //         const answer =
-// // //           card.querySelector(".s1wsz68j.l1rpwius .TermText")?.innerText || "";
-// // //         return { question, answer };
-// // //       });
+// // //     global.sendProgress({
+// // //       progress: 85,
+// // //       message: "Đang đọc dữ liệu câu hỏi...",
 // // //     });
 
-// // //     global.sendProgress({ progress: 100, message: "Done!" });
-// // //     console.log("Sample:", result.slice(0, 5));
+// // //     // Đợi ít nhất 1 thẻ hiển thị nội dung
+// // //     await page.waitForSelector(".TermText", { timeout: 15000 });
+
+// // //     const result = await page.evaluate(() => {
+// // //       // Sử dụng selector bọc ngoài mà bạn cung cấp
+// // //       const cards = document.querySelectorAll(".SetPageTermsList-term");
+// // //       const items = [];
+
+// // //       cards.forEach((card) => {
+// // //         // Tìm 2 phía của thẻ dựa trên data-testid
+// // //         const sides = card.querySelectorAll(
+// // //           '[data-testid="set-page-term-card-side"]'
+// // //         );
+
+// // //         if (sides.length >= 2) {
+// // //           // Lấy text và xử lý xuống dòng từ thẻ <br>
+// // //           const question = sides[0].innerText.trim();
+// // //           const answer = sides[1].innerText.trim();
+
+// // //           if (question || answer) {
+// // //             items.push({ question, answer });
+// // //           }
+// // //         } else {
+// // //           // Phương án dự phòng: Lấy 2 thẻ .TermText đầu tiên trong card
+// // //           const texts = card.querySelectorAll(".TermText");
+// // //           if (texts.length >= 2) {
+// // //             items.push({
+// // //               question: texts[0].innerText.trim(),
+// // //               answer: texts[1].innerText.trim(),
+// // //             });
+// // //           }
+// // //         }
+// // //       });
+// // //       return items;
+// // //     });
+
+// // //     global.sendProgress({
+// // //       progress: 100,
+// // //       message: `Thành công! Lấy được ${result.length} câu.`,
+// // //     });
 
 // // //     await browser.close();
 // // //     res.json({ success: true, total: result.length, data: result });
 // // //   } catch (err) {
-// // //     console.error(err);
-// // //     global.sendProgress({ progress: -1, message: "Error!" });
-// // //     res.status(500).json({ success: false, error: err.toString() });
+// // //     console.error("LỖI CRAWL:", err.message);
+// // //     if (browser) await browser.close();
+// // //     global.sendProgress({ progress: -1, message: "Lỗi: " + err.message });
+// // //     res.status(500).json({ success: false, error: err.message });
 // // //   }
 // // // });
 
-// // // // ==============================
-// // // // PORT
-// // // // ==============================
-// // // const PORT = process.env.PORT || 5000;
-// // // app.listen(PORT, () =>
-// // //   console.log(`Backend running on http://localhost:${PORT}`)
-// // // );
+// // // const PORT = 5000;
+// // // app.listen(PORT, () => {
+// // //   console.log(`Backend running at http://localhost:${PORT}`);
+// // // });
 
 // // const express = require("express");
 // // const cors = require("cors");
@@ -134,8 +289,18 @@
 // // app.use(cors());
 // // app.use(express.json());
 
+// // // Biến lưu trữ kết nối SSE
+// // let progressResponse = null;
+
+// // const sendUpdate = (data) => {
+// //   if (progressResponse) {
+// //     progressResponse.write(`data: ${JSON.stringify(data)}\n\n`);
+// //   }
+// //   console.log(`[Progress]: ${data.message}`);
+// // };
+
 // // // ==============================
-// // // SSE PROGRESS (Gửi tiến trình về Frontend)
+// // // SSE PROGRESS
 // // // ==============================
 // // app.get("/progress", (req, res) => {
 // //   res.setHeader("Content-Type", "text/event-stream");
@@ -143,11 +308,14 @@
 // //   res.setHeader("Connection", "keep-alive");
 // //   res.flushHeaders();
 
-// //   global.sendProgress = (msg) => {
-// //     res.write(`data: ${JSON.stringify(msg)}\n\n`);
-// //   };
+// //   progressResponse = res;
 
-// //   global.sendProgress({ progress: 0, message: "Đang sẵn sàng..." });
+// //   sendUpdate({ progress: 0, message: "Đã kết nối server..." });
+
+// //   // Khi client đóng kết nối
+// //   req.on("close", () => {
+// //     progressResponse = null;
+// //   });
 // // });
 
 // // // ==============================
@@ -155,18 +323,29 @@
 // // // ==============================
 // // app.post("/crawl", async (req, res) => {
 // //   const { url } = req.body;
-// //   if (!url)
-// //     return res.status(400).json({ success: false, error: "URL không hợp lệ" });
+// //   if (!url) return res.status(400).json({ success: false, error: "Thiếu URL" });
 
 // //   let browser;
 // //   try {
-// //     global.sendProgress({ progress: 5, message: "Khởi động trình duyệt..." });
+// //     sendUpdate({ progress: 10, message: "Đang khởi động trình duyệt..." });
 
+// //     // browser = await chromium.launch({
+// //     //   headless: true, // Bắt buộc true khi chạy trên Render
+// //     //   args: [
+// //     //     "--disable-blink-features=AutomationControlled",
+// //     //     "--no-sandbox",
+// //     //     "--disable-setuid-sandbox",
+// //     //   ],
+// //     // });
 // //     browser = await chromium.launch({
-// //       headless: false, // Để false để bạn có thể quan sát và can thiệp nếu gặp Captcha
-// //       args: ["--disable-blink-features=AutomationControlled"],
+// //       headless: true, // Bắt buộc phải là true trên Render
+// //       args: [
+// //         "--no-sandbox",
+// //         "--disable-setuid-sandbox",
+// //         "--disable-dev-shm-usage", // Giúp tránh lỗi crash do thiếu bộ nhớ trên Render gói Free
+// //         "--disable-blink-features=AutomationControlled",
+// //       ],
 // //     });
-
 // //     const context = await browser.newContext({
 // //       viewport: { width: 1280, height: 800 },
 // //       userAgent:
@@ -175,80 +354,57 @@
 
 // //     const page = await context.newPage();
 
-// //     global.sendProgress({ progress: 15, message: "Đang tải trang Quizlet..." });
-
-// //     // Truy cập trang với timeout dài hơn
+// //     sendUpdate({ progress: 20, message: "Đang truy cập Quizlet..." });
 // //     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-// //     // Cuộn trang để kích hoạt lazy loading
-// //     await page.mouse.wheel(0, 1000);
+// //     // Cuộn trang để load data
+// //     await page.evaluate(() => window.scrollBy(0, window.innerHeight));
 // //     await page.waitForTimeout(2000);
 
-// //     // ==============================
-// //     // XỬ LÝ NÚT "XEM THÊM"
-// //     // ==============================
-// //     global.sendProgress({
-// //       progress: 30,
-// //       message: "Đang kiểm tra danh sách dài...",
-// //     });
+// //     // Click "Xem thêm"
 // //     try {
 // //       let clickCount = 0;
-// //       while (clickCount < 30) {
-// //         // Tìm nút dựa trên cấu trúc chung nhất
-// //         const seeMoreBtn = page
+// //       while (clickCount < 10) {
+// //         const btn = page
 // //           .locator(
-// //             "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm'), .SetPage-showMoreButton"
+// //             "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm')"
 // //           )
 // //           .first();
-
-// //         if (await seeMoreBtn.isVisible()) {
-// //           await seeMoreBtn.click();
+// //         if (await btn.isVisible()) {
+// //           await btn.click();
 // //           clickCount++;
-// //           global.sendProgress({
-// //             progress: 30 + clickCount * 2,
-// //             message: `Đã mở rộng danh sách ${clickCount} lần...`,
+// //           sendUpdate({
+// //             progress: 20 + clickCount * 5,
+// //             message: `Đang mở rộng (${clickCount})...`,
 // //           });
 // //           await page.waitForTimeout(1500);
 // //         } else {
 // //           break;
 // //         }
 // //       }
-// //     } catch (e) {
-// //       console.log("Dừng click nút Xem thêm (không tìm thấy hoặc hết thẻ).");
-// //     }
+// //     } catch (e) {}
 
-// //     // ==============================
-// //     // TRÍCH XUẤT DỮ LIỆU CHÍNH XÁC
-// //     // ==============================
-// //     global.sendProgress({
-// //       progress: 85,
-// //       message: "Đang đọc dữ liệu câu hỏi...",
-// //     });
+// //     sendUpdate({ progress: 80, message: "Đang trích xuất dữ liệu..." });
 
-// //     // Đợi ít nhất 1 thẻ hiển thị nội dung
+// //     // Đợi selector chính
 // //     await page.waitForSelector(".TermText", { timeout: 15000 });
 
 // //     const result = await page.evaluate(() => {
-// //       // Sử dụng selector bọc ngoài mà bạn cung cấp
-// //       const cards = document.querySelectorAll(".SetPageTermsList-term");
 // //       const items = [];
+// //       const cards = document.querySelectorAll(
+// //         '.SetPageTermsList-term, [data-testid="set-page-term-card"]'
+// //       );
 
 // //       cards.forEach((card) => {
-// //         // Tìm 2 phía của thẻ dựa trên data-testid
 // //         const sides = card.querySelectorAll(
 // //           '[data-testid="set-page-term-card-side"]'
 // //         );
-
 // //         if (sides.length >= 2) {
-// //           // Lấy text và xử lý xuống dòng từ thẻ <br>
-// //           const question = sides[0].innerText.trim();
-// //           const answer = sides[1].innerText.trim();
-
-// //           if (question || answer) {
-// //             items.push({ question, answer });
-// //           }
+// //           items.push({
+// //             question: sides[0].innerText.trim(),
+// //             answer: sides[1].innerText.trim(),
+// //           });
 // //         } else {
-// //           // Phương án dự phòng: Lấy 2 thẻ .TermText đầu tiên trong card
 // //           const texts = card.querySelectorAll(".TermText");
 // //           if (texts.length >= 2) {
 // //             items.push({
@@ -261,180 +417,142 @@
 // //       return items;
 // //     });
 
-// //     global.sendProgress({
-// //       progress: 100,
-// //       message: `Thành công! Lấy được ${result.length} câu.`,
-// //     });
+// //     sendUpdate({ progress: 100, message: "Hoàn tất!" });
 
 // //     await browser.close();
-// //     res.json({ success: true, total: result.length, data: result });
+// //     return res.json({ success: true, total: result.length, data: result });
 // //   } catch (err) {
-// //     console.error("LỖI CRAWL:", err.message);
+// //     console.error("CRAWL ERROR:", err.message);
 // //     if (browser) await browser.close();
-// //     global.sendProgress({ progress: -1, message: "Lỗi: " + err.message });
-// //     res.status(500).json({ success: false, error: err.message });
+
+// //     sendUpdate({ progress: -1, message: "Lỗi: " + err.message });
+
+// //     if (!res.headersSent) {
+// //       return res.status(500).json({ success: false, error: err.message });
+// //     }
 // //   }
 // // });
 
-// // const PORT = 5000;
-// // app.listen(PORT, () => {
-// //   console.log(`Backend running at http://localhost:${PORT}`);
-// // });
+// // const PORT = process.env.PORT || 5000;
+// // app.listen(PORT, () => console.log(`Server chạy tại port ${PORT}`));
 
 // const express = require("express");
 // const cors = require("cors");
-// const { chromium } = require("playwright");
+// const { chromium } = require("playwright-extra");
+// const stealth = require("puppeteer-extra-plugin-stealth")();
+
+// chromium.use(stealth);
 
 // const app = express();
+// // Cho phép mọi nguồn truy cập để bạn có thể gọi từ web khác
 // app.use(cors());
 // app.use(express.json());
 
-// // Biến lưu trữ kết nối SSE
+// // Hàm gửi progress an toàn
 // let progressResponse = null;
-
 // const sendUpdate = (data) => {
-//   if (progressResponse) {
+//   if (progressResponse && !progressResponse.writableEnded) {
 //     progressResponse.write(`data: ${JSON.stringify(data)}\n\n`);
 //   }
-//   console.log(`[Progress]: ${data.message}`);
 // };
 
-// // ==============================
-// // SSE PROGRESS
-// // ==============================
 // app.get("/progress", (req, res) => {
 //   res.setHeader("Content-Type", "text/event-stream");
 //   res.setHeader("Cache-Control", "no-cache");
 //   res.setHeader("Connection", "keep-alive");
 //   res.flushHeaders();
-
 //   progressResponse = res;
-
-//   sendUpdate({ progress: 0, message: "Đã kết nối server..." });
-
-//   // Khi client đóng kết nối
+//   sendUpdate({ progress: 0, message: "Server đã sẵn sàng..." });
 //   req.on("close", () => {
 //     progressResponse = null;
 //   });
 // });
 
-// // ==============================
-// // CRAWL LOGIC
-// // ==============================
 // app.post("/crawl", async (req, res) => {
 //   const { url } = req.body;
-//   if (!url) return res.status(400).json({ success: false, error: "Thiếu URL" });
+//   if (!url)
+//     return res.status(400).json({ success: false, error: "URL là bắt buộc" });
 
 //   let browser;
 //   try {
-//     sendUpdate({ progress: 10, message: "Đang khởi động trình duyệt..." });
+//     sendUpdate({ progress: 10, message: "Đang khởi tạo trình duyệt..." });
 
-//     // browser = await chromium.launch({
-//     //   headless: true, // Bắt buộc true khi chạy trên Render
-//     //   args: [
-//     //     "--disable-blink-features=AutomationControlled",
-//     //     "--no-sandbox",
-//     //     "--disable-setuid-sandbox",
-//     //   ],
-//     // });
 //     browser = await chromium.launch({
-//       headless: true, // Bắt buộc phải là true trên Render
+//       headless: true, // Phải để true khi deploy public
 //       args: [
 //         "--no-sandbox",
 //         "--disable-setuid-sandbox",
-//         "--disable-dev-shm-usage", // Giúp tránh lỗi crash do thiếu bộ nhớ trên Render gói Free
+//         "--disable-dev-shm-usage",
 //         "--disable-blink-features=AutomationControlled",
+//         "--single-process", // Quan trọng: Giúp tiết kiệm RAM trên Render
 //       ],
 //     });
+
 //     const context = await browser.newContext({
-//       viewport: { width: 1280, height: 800 },
 //       userAgent:
-//         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+//         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 //     });
 
 //     const page = await context.newPage();
 
-//     sendUpdate({ progress: 20, message: "Đang truy cập Quizlet..." });
-//     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+//     // Đặt thời gian chờ tối đa cho toàn bộ quá trình
+//     page.setDefaultTimeout(60000);
 
-//     // Cuộn trang để load data
-//     await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-//     await page.waitForTimeout(2000);
+//     sendUpdate({ progress: 30, message: "Đang kết nối Quizlet..." });
 
-//     // Click "Xem thêm"
-//     try {
-//       let clickCount = 0;
-//       while (clickCount < 10) {
-//         const btn = page
-//           .locator(
-//             "button:has-text('See More'), button:has-text('Hiển thị thêm'), button:has-text('Xem thêm')"
-//           )
-//           .first();
-//         if (await btn.isVisible()) {
-//           await btn.click();
-//           clickCount++;
-//           sendUpdate({
-//             progress: 20 + clickCount * 5,
-//             message: `Đang mở rộng (${clickCount})...`,
-//           });
-//           await page.waitForTimeout(1500);
-//         } else {
-//           break;
-//         }
-//       }
-//     } catch (e) {}
+//     // Sử dụng domcontentloaded thay vì networkidle để tránh bị kẹt do Cloudflare/Ads
+//     await page.goto(url, { waitUntil: "domcontentloaded" });
 
-//     sendUpdate({ progress: 80, message: "Đang trích xuất dữ liệu..." });
+//     // Đợi 5 giây để nội dung động kịp tải
+//     await page.waitForTimeout(5000);
 
-//     // Đợi selector chính
-//     await page.waitForSelector(".TermText", { timeout: 15000 });
+//     // Cuộn trang để kích hoạt load thêm thẻ
+//     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+//     sendUpdate({ progress: 70, message: "Đang trích xuất dữ liệu..." });
 
 //     const result = await page.evaluate(() => {
-//       const items = [];
+//       const data = [];
+//       // Selector bao quát các phiên bản giao diện của Quizlet
 //       const cards = document.querySelectorAll(
-//         '.SetPageTermsList-term, [data-testid="set-page-term-card"]'
+//         '.SetPageTermsList-term, .SetPageTerm, [data-testid="set-page-term-card"]'
 //       );
 
 //       cards.forEach((card) => {
-//         const sides = card.querySelectorAll(
-//           '[data-testid="set-page-term-card-side"]'
-//         );
-//         if (sides.length >= 2) {
-//           items.push({
-//             question: sides[0].innerText.trim(),
-//             answer: sides[1].innerText.trim(),
+//         const textElements = card.querySelectorAll(".TermText");
+//         if (textElements.length >= 2) {
+//           data.push({
+//             question: textElements[0].innerText.trim(),
+//             answer: textElements[1].innerText.trim(),
 //           });
-//         } else {
-//           const texts = card.querySelectorAll(".TermText");
-//           if (texts.length >= 2) {
-//             items.push({
-//               question: texts[0].innerText.trim(),
-//               answer: texts[1].innerText.trim(),
-//             });
-//           }
 //         }
 //       });
-//       return items;
+//       return data;
 //     });
 
-//     sendUpdate({ progress: 100, message: "Hoàn tất!" });
+//     if (result.length === 0) {
+//       throw new Error(
+//         "Không thể tìm thấy nội dung. Quizlet có thể đã chặn IP của Server."
+//       );
+//     }
+
+//     sendUpdate({ progress: 100, message: "Thành công!" });
 
 //     await browser.close();
 //     return res.json({ success: true, total: result.length, data: result });
 //   } catch (err) {
-//     console.error("CRAWL ERROR:", err.message);
 //     if (browser) await browser.close();
-
 //     sendUpdate({ progress: -1, message: "Lỗi: " + err.message });
-
-//     if (!res.headersSent) {
-//       return res.status(500).json({ success: false, error: err.message });
-//     }
+//     if (!res.headersSent)
+//       res.status(500).json({ success: false, error: err.message });
 //   }
 // });
 
+// // Port linh hoạt cho môi trường Public (Render dùng 10000)
 // const PORT = process.env.PORT || 5000;
-// app.listen(PORT, () => console.log(`Server chạy tại port ${PORT}`));
+// app.listen(PORT, "0.0.0.0", () =>
+//   console.log(`API đang Public tại port ${PORT}`)
+// );
 
 const express = require("express");
 const cors = require("cors");
@@ -444,16 +562,15 @@ const stealth = require("puppeteer-extra-plugin-stealth")();
 chromium.use(stealth);
 
 const app = express();
-// Cho phép mọi nguồn truy cập để bạn có thể gọi từ web khác
 app.use(cors());
 app.use(express.json());
 
-// Hàm gửi progress an toàn
 let progressResponse = null;
 const sendUpdate = (data) => {
   if (progressResponse && !progressResponse.writableEnded) {
     progressResponse.write(`data: ${JSON.stringify(data)}\n\n`);
   }
+  console.log(`[LOG]: ${data.message}`);
 };
 
 app.get("/progress", (req, res) => {
@@ -462,7 +579,7 @@ app.get("/progress", (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
   progressResponse = res;
-  sendUpdate({ progress: 0, message: "Server đã sẵn sàng..." });
+  sendUpdate({ progress: 0, message: "Kết nối Debug sẵn sàng..." });
   req.on("close", () => {
     progressResponse = null;
   });
@@ -478,52 +595,91 @@ app.post("/crawl", async (req, res) => {
     sendUpdate({ progress: 10, message: "Đang khởi tạo trình duyệt..." });
 
     browser = await chromium.launch({
-      headless: true, // Phải để true khi deploy public
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled",
-        "--single-process", // Quan trọng: Giúp tiết kiệm RAM trên Render
+        "--single-process",
       ],
     });
 
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      viewport: { width: 1280, height: 720 },
     });
 
     const page = await context.newPage();
-
-    // Đặt thời gian chờ tối đa cho toàn bộ quá trình
     page.setDefaultTimeout(60000);
 
-    sendUpdate({ progress: 30, message: "Đang kết nối Quizlet..." });
+    sendUpdate({ progress: 30, message: "Đang truy cập Quizlet..." });
 
-    // Sử dụng domcontentloaded thay vì networkidle để tránh bị kẹt do Cloudflare/Ads
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    // Debug: Theo dõi Response từ Server
+    const response = await page.goto(url, { waitUntil: "domcontentloaded" });
+    const status = response.status();
 
-    // Đợi 5 giây để nội dung động kịp tải
+    sendUpdate({ progress: 40, message: `Mã phản hồi HTTP: ${status}` });
+
+    if (status === 403) {
+      throw new Error("Lỗi 403: IP của Render đã bị Quizlet chặn hoàn toàn.");
+    }
+
+    // Chờ 5s để Cloudflare xử lý
     await page.waitForTimeout(5000);
 
-    // Cuộn trang để kích hoạt load thêm thẻ
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    // DEBUG: Kiểm tra nội dung trang hiện tại
+    const pageTitle = await page.title();
+    const pageContent = await page.content();
 
-    sendUpdate({ progress: 70, message: "Đang trích xuất dữ liệu..." });
+    if (
+      pageContent.includes("Cloudflare") ||
+      pageContent.includes("Verify you are human")
+    ) {
+      sendUpdate({
+        progress: 50,
+        message: "Phát hiện trang chặn của Cloudflare/Captcha!",
+      });
+      throw new Error("Bị kẹt tại trang kiểm tra robot của Cloudflare.");
+    }
+
+    sendUpdate({
+      progress: 60,
+      message: `Tiêu đề trang: ${pageTitle.substring(0, 30)}...`,
+    });
+
+    // Cuộn trang
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(2000);
+
+    sendUpdate({ progress: 80, message: "Bắt đầu trích xuất..." });
 
     const result = await page.evaluate(() => {
       const data = [];
-      // Selector bao quát các phiên bản giao diện của Quizlet
+      // Thêm nhiều selector dự phòng
       const cards = document.querySelectorAll(
-        '.SetPageTermsList-term, .SetPageTerm, [data-testid="set-page-term-card"]'
+        '.SetPageTermsList-term, .SetPageTerm, [data-testid="set-page-term-card"], .TermText'
       );
 
+      // Nếu là .TermText đơn lẻ (trường hợp cấu trúc phẳng)
+      if (document.querySelectorAll(".SetPageTermsList-term").length === 0) {
+        const allTexts = Array.from(document.querySelectorAll(".TermText"));
+        for (let i = 0; i < allTexts.length; i += 2) {
+          if (allTexts[i + 1])
+            data.push({
+              question: allTexts[i].innerText,
+              answer: allTexts[i + 1].innerText,
+            });
+        }
+        return data;
+      }
+
       cards.forEach((card) => {
-        const textElements = card.querySelectorAll(".TermText");
-        if (textElements.length >= 2) {
+        const texts = card.querySelectorAll(".TermText");
+        if (texts.length >= 2) {
           data.push({
-            question: textElements[0].innerText.trim(),
-            answer: textElements[1].innerText.trim(),
+            question: texts[0].innerText.trim(),
+            answer: texts[1].innerText.trim(),
           });
         }
       });
@@ -531,25 +687,29 @@ app.post("/crawl", async (req, res) => {
     });
 
     if (result.length === 0) {
+      // DEBUG: Nếu không thấy dữ liệu, chụp lại log cấu trúc HTML
+      const htmlSnippet = pageContent.substring(0, 500).replace(/</g, "&lt;");
+      console.log("HTML Snippet:", htmlSnippet);
       throw new Error(
-        "Không thể tìm thấy nội dung. Quizlet có thể đã chặn IP của Server."
+        "Không tìm thấy thẻ chứa dữ liệu (Selector mismatch hoặc trang trống)."
       );
     }
 
-    sendUpdate({ progress: 100, message: "Thành công!" });
-
+    sendUpdate({
+      progress: 100,
+      message: `Thành công! Lấy được ${result.length} câu.`,
+    });
     await browser.close();
     return res.json({ success: true, total: result.length, data: result });
   } catch (err) {
     if (browser) await browser.close();
-    sendUpdate({ progress: -1, message: "Lỗi: " + err.message });
+    sendUpdate({ progress: -1, message: "LỖI DEBUG: " + err.message });
     if (!res.headersSent)
       res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Port linh hoạt cho môi trường Public (Render dùng 10000)
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, "0.0.0.0", () =>
-  console.log(`API đang Public tại port ${PORT}`)
+  console.log(`API Debug running on port ${PORT}`)
 );
