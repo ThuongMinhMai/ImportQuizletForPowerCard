@@ -444,15 +444,16 @@ const stealth = require("puppeteer-extra-plugin-stealth")();
 chromium.use(stealth);
 
 const app = express();
+// Cho phép mọi nguồn truy cập để bạn có thể gọi từ web khác
 app.use(cors());
 app.use(express.json());
 
+// Hàm gửi progress an toàn
 let progressResponse = null;
 const sendUpdate = (data) => {
-  if (progressResponse) {
+  if (progressResponse && !progressResponse.writableEnded) {
     progressResponse.write(`data: ${JSON.stringify(data)}\n\n`);
   }
-  console.log(`[Progress]: ${data.message}`);
 };
 
 app.get("/progress", (req, res) => {
@@ -461,7 +462,7 @@ app.get("/progress", (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
   progressResponse = res;
-  sendUpdate({ progress: 0, message: "Kết nối thành công..." });
+  sendUpdate({ progress: 0, message: "Server đã sẵn sàng..." });
   req.on("close", () => {
     progressResponse = null;
   });
@@ -469,116 +470,77 @@ app.get("/progress", (req, res) => {
 
 app.post("/crawl", async (req, res) => {
   const { url } = req.body;
-  if (!url) return res.status(400).json({ success: false, error: "Thiếu URL" });
+  if (!url)
+    return res.status(400).json({ success: false, error: "URL là bắt buộc" });
 
   let browser;
   try {
-    sendUpdate({ progress: 10, message: "Khởi động trình duyệt bảo mật..." });
+    sendUpdate({ progress: 10, message: "Đang khởi tạo trình duyệt..." });
 
     browser = await chromium.launch({
-      headless: true,
+      headless: true, // Phải để true khi deploy public
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-blink-features=AutomationControlled",
+        "--single-process", // Quan trọng: Giúp tiết kiệm RAM trên Render
       ],
     });
 
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      viewport: { width: 1280, height: 720 },
     });
 
     const page = await context.newPage();
 
-    // Giả lập hành vi người dùng bằng cách thêm các header phụ
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
-    });
+    // Đặt thời gian chờ tối đa cho toàn bộ quá trình
+    page.setDefaultTimeout(60000);
 
-    sendUpdate({
-      progress: 30,
-      message: "Đang tải trang (có thể mất 10-20s)...",
-    });
+    sendUpdate({ progress: 30, message: "Đang kết nối Quizlet..." });
 
-    // Tăng timeout lên 90s vì Render khá chậm
-    await page.goto(url, { waitUntil: "networkidle", timeout: 90000 });
+    // Sử dụng domcontentloaded thay vì networkidle để tránh bị kẹt do Cloudflare/Ads
+    await page.goto(url, { waitUntil: "domcontentloaded" });
 
-    // Cuộn trang từ từ để tránh bị nghi ngờ là bot và kích hoạt lazy load
-    await page.evaluate(async () => {
-      await new Promise((resolve) => {
-        let totalHeight = 0;
-        let distance = 100;
-        let timer = setInterval(() => {
-          window.scrollBy(0, distance);
-          totalHeight += distance;
-          if (totalHeight >= document.body.scrollHeight) {
-            clearInterval(timer);
-            resolve();
-          }
-        }, 100);
-      });
-    });
+    // Đợi 5 giây để nội dung động kịp tải
+    await page.waitForTimeout(5000);
 
-    sendUpdate({ progress: 60, message: "Đang giải mã nội dung..." });
+    // Cuộn trang để kích hoạt load thêm thẻ
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
-    // Thay vì waitForSelector, ta dùng waitForFunction để kiểm tra sự tồn tại của dữ liệu
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector(".TermText");
-        return el && el.innerText.length > 0;
-      },
-      { timeout: 30000 }
-    );
+    sendUpdate({ progress: 70, message: "Đang trích xuất dữ liệu..." });
 
     const result = await page.evaluate(() => {
       const data = [];
+      // Selector bao quát các phiên bản giao diện của Quizlet
       const cards = document.querySelectorAll(
-        '.SetPageTermsList-term, [data-testid="set-page-term-card"]'
+        '.SetPageTermsList-term, .SetPageTerm, [data-testid="set-page-term-card"]'
       );
 
       cards.forEach((card) => {
-        const sides = card.querySelectorAll(
-          '[data-testid="set-page-term-card-side"]'
-        );
-        if (sides.length >= 2) {
+        const textElements = card.querySelectorAll(".TermText");
+        if (textElements.length >= 2) {
           data.push({
-            question: sides[0].innerText.trim(),
-            answer: sides[1].innerText.trim(),
+            question: textElements[0].innerText.trim(),
+            answer: textElements[1].innerText.trim(),
           });
         }
       });
-
-      // Nếu vẫn rỗng, thử lấy theo class phổ biến nhất
-      if (data.length === 0) {
-        const allTexts = Array.from(document.querySelectorAll(".TermText"));
-        for (let i = 0; i < allTexts.length; i += 2) {
-          if (allTexts[i + 1]) {
-            data.push({
-              question: allTexts[i].innerText.trim(),
-              answer: allTexts[i + 1].innerText.trim(),
-            });
-          }
-        }
-      }
       return data;
     });
 
-    if (result.length === 0)
+    if (result.length === 0) {
       throw new Error(
-        "Không lấy được dữ liệu. Có thể trang này yêu cầu đăng nhập."
+        "Không thể tìm thấy nội dung. Quizlet có thể đã chặn IP của Server."
       );
+    }
 
-    sendUpdate({
-      progress: 100,
-      message: `Thành công! Lấy được ${result.length} câu.`,
-    });
+    sendUpdate({ progress: 100, message: "Thành công!" });
+
     await browser.close();
     return res.json({ success: true, total: result.length, data: result });
   } catch (err) {
-    console.error("LỖI:", err.message);
     if (browser) await browser.close();
     sendUpdate({ progress: -1, message: "Lỗi: " + err.message });
     if (!res.headersSent)
@@ -586,5 +548,8 @@ app.post("/crawl", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Server chạy tại port ${PORT}`));
+// Port linh hoạt cho môi trường Public (Render dùng 10000)
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`API đang Public tại port ${PORT}`)
+);
