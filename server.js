@@ -329,15 +329,23 @@ app.post("/crawl", async (req, res) => {
   try {
     sendUpdate({ progress: 10, message: "Đang khởi động trình duyệt..." });
 
+    // browser = await chromium.launch({
+    //   headless: true, // Bắt buộc true khi chạy trên Render
+    //   args: [
+    //     "--disable-blink-features=AutomationControlled",
+    //     "--no-sandbox",
+    //     "--disable-setuid-sandbox",
+    //   ],
+    // });
     browser = await chromium.launch({
-      headless: true, // Bắt buộc true khi chạy trên Render
+      headless: true, // Bắt buộc phải là true trên Render
       args: [
-        "--disable-blink-features=AutomationControlled",
         "--no-sandbox",
         "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", // Giúp tránh lỗi crash do thiếu bộ nhớ trên Render gói Free
+        "--disable-blink-features=AutomationControlled",
       ],
     });
-
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 },
       userAgent:
